@@ -44,11 +44,13 @@ class Assistant(Agent):
 
     @function_tool()
     async def on_enter(context: RunContext) -> None:
+        """Handle the on_enter event of the agent."""
 
-        logger.info(f"Enter the on_enter() node....")
+        logger.info(f"Enter the on_enter node....")
+
         
         instructions = (
-            f"Welcome the caller to the ask him about the purpose of his call"
+            f"Welcome the caller to Grizzly Barbershop, then kindly ask whether the purpose of their call is to schedule an appointment or to inquire about services and prices. "
             )
         
         await context.session.generate_reply(
@@ -100,20 +102,33 @@ class Assistant(Agent):
           return {"success": "Ok"}
 
     @function_tool()
-    async def get_availability(
+    async def check_availability(
         self,
         context: RunContext,
-        date_range:str
     )-> dict:
-      """Get availability for a date range.
+        """Use this tool to check for the  availability of the date and time given by the client."""
+        await context.session.say(
+            "Attendez un instant, je vais vérifier la disponibilité du créneau que vous avez demandé.",
+            allow_interruptions=False,
+            )
+      
+        # API call to check availability would go here.
+        # For the sake of this example, we will return a hardcoded list of available dates
+        output = {
+            "success": True,
+            "requested_slot": {
+                "date": "2025-10-20",
+                "time": "14:00",
+                "status": "unavailable"
+            },
+            "suggested_slots": [
+                {"date": "2025-10-25", "time": "10:00"},
+                {"date": "2025-10-28", "time": "16:30"},
+                {"date": "2025-10-29", "time": "09:00"}
+            ]
+        }
+        return output
 
-      Args:
-          date_range: The date range to get availability for.
-
-      Returns:
-          A list of available slots.
-      """
-      return {'available_dates':["20/10","25/10","28/10"]}
 
     @function_tool()
     async def has_appointment(
