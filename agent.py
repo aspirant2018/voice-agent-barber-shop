@@ -64,23 +64,45 @@ class Assistant(Agent):
           self,
           context: RunContext,
           name: str,
-          service_type: str,
           slot: str,
           category:str
       ) -> dict:
-          """Book a slot for a service.
+        """Book a slot for a service.
 
           Args:
               name: The name of the client.
-              service_type: The type of service to book.
               slot: The slot to book.
               category: The category of the service chosen by the client.
 
           Returns:
               A confirmation message
-          """
+        """
+        logger.info(f"Enter the book_slot node....")
 
-          return {"success": "Ok"}
+          # API call to book the slot would go here.
+        logger.info(f"Booking slot for {name} on {slot} in category {category}")
+
+        webhook = "https://sought-cicada-scarcely.ngrok-free.app/webhook-test/716bf76e-170c-470a-8c9d-82b927292ef9"
+
+        import aiohttp
+        import asyncio
+
+        async def fetch_webhook():
+            async with aiohttp.ClientSession() as client_session:
+                async with client_session.get(webhook) as response:
+                    return await response.json()
+
+        webhook_task = asyncio.create_task(fetch_webhook())
+  
+        await self.session.generate_reply(
+                    instructions="Tell the user we're processing their request."
+                )
+
+        # Wait for the webhook result
+        data = await webhook_task
+        
+        logger.info(f"Webhook response: {data}")
+        return {"success": "Ok"}
 
     @function_tool()
     async def send_email(
@@ -188,30 +210,3 @@ class Assistant(Agent):
 
 
       return haircut_prices[category]
-
-
-async def entrypoint(ctx: agents.JobContext):
-    await ctx.connect()
-
-    session = AgentSession(
-        stt=openai.STT(language="fr"),
-        llm=openai.LLM(model="gpt-4o-mini"),
-        tts=openai.TTS(),
-        vad=silero.VAD.load(),
-        turn_detection=MultilingualModel(),
-    )
-
-    await session.start(
-        room=ctx.room,
-        agent=Assistant(),
-        room_input_options=RoomInputOptions(
-            # LiveKit Cloud enhanced noise cancellation
-            # - If self-hosting, omit this parameter
-            # - For telephony applications, use `BVCTelephony` for best results
-            noise_cancellation=noise_cancellation.BVC(), 
-        ),
-    )
-
-
-if __name__ == "__main__":
-    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
