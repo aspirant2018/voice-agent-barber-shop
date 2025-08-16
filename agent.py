@@ -10,15 +10,30 @@ from livekit.plugins import (
     silero,
 )
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
+import logging
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
 system_prompt = """
-                You are a helpful barber assistant communicating  only in French
-                via voice.
-                Your role is to help clients to make appointment.
-                After booking a slot send a confirmation email to the user.
-                2. Use clarification techniques:
+                # Identity:
+                You are a helpful barber assistant communicating only in french.
+                the barber shop is called "grizzly barbershop".
+                the adresse is "1 rue d’Hauteville, 75010 Paris" next to Métro Bonne Nouvelle - Ligne 8.
+                The shop is open all days except Sunday, from 10:00 AM to 7:00 PM.
+                Your role is to help clients to schedule appointments.
+
+                # Instructions for the assistant:
+                1. Ask the client for the day and time they would like to book an appointment.
+                2. <wait for the client to provide a date and time>.
+                3. Check the availability of the requested slot.
+                4. If the slot is available, ask for the client's name and the type of service they want.
+                5. <wait for the client to provide their name and service type>.
+                5. Book the slot and confirm the appointment with the client.
+                6. If the slot is not available, ask the client if they would like to choose another slot.
+
+                # clarification techniques:
                   - For spelling: "Could you spell that for me, please?"
                   - For numbers: "Was that 1-5-0-0 or 1-5,000?"
                   - For dates: "So that's January fifteenth, 2023, correct?"
@@ -26,6 +41,21 @@ system_prompt = """
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=system_prompt)
+
+    @function_tool()
+    async def on_enter(context: RunContext) -> None:
+
+        logger.info(f"Enter the on_enter() node....")
+        
+        instructions = (
+            f"Welcome the caller to the ask him about the purpose of his call"
+            )
+        
+        await context.session.generate_reply(
+            instructions = instructions,
+            allow_interruptions = False
+         )
+        
 
     @function_tool()
     async def book_slot(
@@ -86,7 +116,7 @@ class Assistant(Agent):
       return {'available_dates':["20/10","25/10","28/10"]}
 
     @function_tool()
-    async def if_has_appointment(
+    async def has_appointment(
         self,
         context: RunContext,
         name:str
@@ -167,9 +197,6 @@ async def entrypoint(ctx: agents.JobContext):
         ),
     )
 
-    await session.generate_reply(
-        instructions="Greet the user and welcome him to 'The D-Z Barber SHOP' and offer him assistance in making appointment or haircut prices."
-    )
 
 if __name__ == "__main__":
     agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
