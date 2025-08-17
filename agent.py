@@ -16,7 +16,19 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
-system_prompt = """
+from datetime import datetime
+from zoneinfo import ZoneInfo  # Python 3.9+
+
+# Current time in Paris
+paris_time = datetime.now(ZoneInfo("Europe/Paris"))
+
+# Format with milliseconds and timezone offset
+now = paris_time.isoformat(timespec="milliseconds")
+logger.info(f"Now: {now}")
+
+system_prompt = f"""
+                # Current date and time: {now}
+
                 # Identity:
                 You are a helpful barber assistant communicating only in french.
                 the barber shop is called "grizzly barbershop".
@@ -40,7 +52,7 @@ system_prompt = """
 """
 class Assistant(Agent):
     def __init__(self) -> None:
-        super().__init__(instructions=system_prompt)
+        super().__init__(instructions=system_prompt.format(now=now))
 
     @function_tool()
     async def on_enter(context: RunContext) -> None:
@@ -79,7 +91,7 @@ class Assistant(Agent):
         """
         logger.info(f"Enter the book_slot node....")
 
-          # API call to book the slot would go here.
+        # API call to book the slot would go here.
         logger.info(f"Booking slot for {name} on {slot} in category {category}")
 
         webhook = "https://sought-cicada-scarcely.ngrok-free.app/webhook-test/716bf76e-170c-470a-8c9d-82b927292ef9"
@@ -127,15 +139,28 @@ class Assistant(Agent):
     async def check_availability(
         self,
         context: RunContext,
+        date_time: str,
     )-> dict:
         """Use this tool to check for the  availability of the date and time given by the client."""
+        
         await context.session.say(
             "Attendez un instant, je vais vérifier la disponibilité du créneau que vous avez demandé.",
             allow_interruptions=False,
             )
       
         # API call to check availability would go here.
+        import requests
+        webhook_availability = "https://sought-cicada-scarcely.ngrok-free.app/webhook-test/716bf76e-170c-470a-8c9d-82b927292ef9"
+
+        
+        params = {
+            "date_time":date_time,
+        }
+
+        response = requests.get(webhook_availability, params=params)
+        logger.info(f"{response.status_code}, {response.text}")
         # For the sake of this example, we will return a hardcoded list of available dates
+
         output = {
             "success": True,
             "requested_slot": {
