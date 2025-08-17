@@ -139,7 +139,7 @@ class Assistant(Agent):
     async def check_availability(
         self,
         context: RunContext,
-        date_time: str,
+        start_time: str,
     )-> dict:
         """Use this tool to check for the  availability of the date and time given by the client."""
         
@@ -152,14 +152,25 @@ class Assistant(Agent):
         import requests
         webhook_availability = "https://sought-cicada-scarcely.ngrok-free.app/webhook-test/716bf76e-170c-470a-8c9d-82b927292ef9"
 
+        # The end time is the start time plus 30 minutes
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo  # Python 3.9+    
+
         
+        start_time = datetime.fromisoformat(start_time).astimezone(ZoneInfo("Europe/Paris"))    # Convert start_time to a datetime object in the Paris timezone
+        end_time = start_time + timedelta(minutes=30)                                           # Add 30 minutes to the start time
+
+        logger.info(f"Start time: {start_time.isoformat(timespec='milliseconds')}")
+        logger.info(f"End time: {end_time.isoformat(timespec='milliseconds')}")
+
         params = {
-            "date_time":date_time,
+            "call_time": now,
+            "start":start_time,
+            "end": end_time,
         }
 
         response = requests.get(webhook_availability, params=params)
         logger.info(f"{response.status_code}, {response.text}")
-        # For the sake of this example, we will return a hardcoded list of available dates
 
         output = {
             "success": True,
@@ -174,7 +185,7 @@ class Assistant(Agent):
                 {"date": "2025-10-29", "time": "09:00"}
             ]
         }
-        return output
+        return response.text
 
 
     @function_tool()
