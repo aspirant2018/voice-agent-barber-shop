@@ -68,6 +68,7 @@ class Assistant(Agent):
         """Handle the on_enter event of the agent."""
 
         logger.info(f"Enter the on_enter node....")
+        logger.info(f"Userdata => {context.session.userdata}")
 
         
         instructions = (
@@ -79,52 +80,6 @@ class Assistant(Agent):
             allow_interruptions = False
          )
         
-
-    @function_tool()
-    async def book_slot(
-          self,
-          context: RunContext,
-          name: str,
-          start_time: str,
-          category:str
-      ) -> dict:
-        """Book a slot for a service.
-
-          Args:
-              name: The name of the client.
-              slot: The slot to book.
-              category: The category of the service chosen by the client.
-
-          Returns:
-              A confirmation message
-        """
-        logger.info(f"Enter the book_slot node....")
-        logger.info(f"Booking slot for {name} on {start_time} in category {category}")
-
-
-              
-        start_time = datetime.fromisoformat(start_time).astimezone(ZoneInfo("Europe/Paris"))    # Convert start_time to a datetime object in the Paris timezone
-        
-        # End time it depiends on the category
-        end_time = start_time + timedelta(minutes=30)                                           # Add 30 minutes to the start time
-
-        logger.info(f"Start time: {start_time.isoformat(timespec='milliseconds')}")
-        logger.info(f"End time: {end_time.isoformat(timespec='milliseconds')}")
-        
-        data = {
-            "name": name,
-            "category":category,
-            "start_time": start_time,
-            "end_time": end_time
-        }
-
-        response = await send_post(
-            webhook_url=webhook_url,
-            headers=self.headers,
-            tool_name="book_appointment",
-            data=data
-            )
-        return {"message": response}
 
 
     @function_tool()
@@ -160,9 +115,63 @@ class Assistant(Agent):
             data=data
             )
 
-        # logger.info(f"{response.status_code}, {response.text}")
 
         return {"message": response}
+    
+    @function_tool()
+    async def book_slot(
+          self,
+          context: RunContext,
+          name: str,
+          start_time: str,
+          category:str
+      ) -> dict:
+        """Book a slot for a service.
+
+          Args:
+              name: The name of the client.
+              slot: The slot to book.
+              category: The category of the service chosen by the client.
+
+          Returns:
+              A confirmation message
+        """
+        logger.info(f"Enter the book_slot node....")
+        logger.info(f"Booking slot for {name} on {start_time} in category {category}")
+
+
+              
+        start_time = datetime.fromisoformat(start_time).astimezone(ZoneInfo("Europe/Paris"))    # Convert start_time to a datetime object in the Paris timezone
+        
+        # End time it depiends on the category
+        end_time = start_time + timedelta(minutes=30)                                           # Add 30 minutes to the start time
+
+        logger.info(f"Start time: {start_time.isoformat(timespec='milliseconds')}")
+        logger.info(f"End time: {end_time.isoformat(timespec='milliseconds')}")
+        
+        data = {
+            "name": name,
+            "category":category,
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat()
+        }
+
+        response = await send_post(
+            webhook_url=webhook_url,
+            headers=self.headers,
+            tool_name="book_appointment",
+            data=data
+            )
+        
+        if response.status == 200:
+           context.session.userdata.user_name = name
+           context.session.userdata.start_time = start_time
+           context.session.userdata.end_time = end_time
+           context.session.userdata.category = category
+
+
+        return {"message": response}
+
 
 
     @function_tool()

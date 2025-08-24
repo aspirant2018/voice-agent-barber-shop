@@ -17,11 +17,21 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
+from dataclasses import dataclass
+
+@dataclass
+class ReservationData:
+    user_name: str | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    category: str | None = None
+
 
 async def entrypoint(ctx: agents.JobContext):
     await ctx.connect()
 
-    session = AgentSession(
+    session = AgentSession[ReservationData](
+        userdata=ReservationData,
         stt=openai.STT(language="fr"),
         llm=openai.LLM(model="gpt-4.1-mini-2025-04-14"),
         tts=openai.TTS(),
