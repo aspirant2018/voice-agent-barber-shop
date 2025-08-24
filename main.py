@@ -6,7 +6,6 @@ from livekit import agents
 from livekit.agents import AgentSession, Agent, RoomInputOptions,function_tool,RunContext
 from livekit.plugins import (
     openai,
-    elevenlabs,
     noise_cancellation,
     silero,
 )
@@ -24,7 +23,7 @@ async def entrypoint(ctx: agents.JobContext):
 
     session = AgentSession(
         stt=openai.STT(language="fr"),
-        llm=openai.LLM(model="gpt-4o-mini"),
+        llm=openai.LLM(model="gpt-4.1-mini-2025-04-14"),
         tts=openai.TTS(),
         vad=silero.VAD.load(),
         turn_detection=MultilingualModel(),

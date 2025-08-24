@@ -3,21 +3,22 @@ from typing import Literal
 
 from livekit import agents
 from livekit.agents import AgentSession, Agent, RoomInputOptions,function_tool,RunContext
-from livekit.plugins import (
-    openai,
-    elevenlabs,
-    noise_cancellation,
-    silero,
-)
+
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo  # Python 3.9+
+from helpers import send_post
+        # The end time is the start time plus 30 minutes
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo  # Python 3.9+    
+
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
-from datetime import datetime
-from zoneinfo import ZoneInfo  # Python 3.9+
 
 # Current time in Paris
 paris_time = datetime.now(ZoneInfo("Europe/Paris"))
@@ -25,6 +26,8 @@ paris_time = datetime.now(ZoneInfo("Europe/Paris"))
 # Format with milliseconds and timezone offset
 now = paris_time.isoformat(timespec="milliseconds")
 logger.info(f"Now: {now}")
+webhook_url = "https://sought-cicada-scarcely.ngrok-free.app/webhook-test/716bf76e-170c-470a-8c9d-82b927292ef9"
+
 
 system_prompt = f"""
                 # Current date and time: {now}
@@ -51,6 +54,12 @@ system_prompt = f"""
                   - For dates: "So that's January fifteenth, 2023, correct?"
 """
 class Assistant(Agent):
+
+    headers = {
+                "accept": "application/json",
+                "Content-Type": "application/json",
+            }
+    
     def __init__(self) -> None:
         super().__init__(instructions=system_prompt.format(now=now))
 
@@ -76,7 +85,7 @@ class Assistant(Agent):
           self,
           context: RunContext,
           name: str,
-          slot: str,
+          start_time: str,
           category:str
       ) -> dict:
         """Book a slot for a service.
@@ -90,50 +99,33 @@ class Assistant(Agent):
               A confirmation message
         """
         logger.info(f"Enter the book_slot node....")
+        logger.info(f"Booking slot for {name} on {start_time} in category {category}")
 
-        # API call to book the slot would go here.
-        logger.info(f"Booking slot for {name} on {slot} in category {category}")
 
-        webhook = "https://sought-cicada-scarcely.ngrok-free.app/webhook-test/716bf76e-170c-470a-8c9d-82b927292ef9"
-
-        import aiohttp
-        import asyncio
-
-        async def fetch_webhook():
-            async with aiohttp.ClientSession() as client_session:
-                async with client_session.get(webhook) as response:
-                    return await response.json()
-
-        webhook_task = asyncio.create_task(fetch_webhook())
-  
-        await self.session.generate_reply(
-                    instructions="Tell the user we're processing their request."
-                )
-
-        # Wait for the webhook result
-        data = await webhook_task
+              
+        start_time = datetime.fromisoformat(start_time).astimezone(ZoneInfo("Europe/Paris"))    # Convert start_time to a datetime object in the Paris timezone
         
-        logger.info(f"Webhook response: {data}")
-        return {"success": "Ok"}
+        # End time it depiends on the category
+        end_time = start_time + timedelta(minutes=30)                                           # Add 30 minutes to the start time
 
-    @function_tool()
-    async def send_email(
-          self,
-          context: RunContext,
-          to: str,
-      ) -> dict:
-          """Send an email to a client.
+        logger.info(f"Start time: {start_time.isoformat(timespec='milliseconds')}")
+        logger.info(f"End time: {end_time.isoformat(timespec='milliseconds')}")
+        
+        data = {
+            "name": name,
+            "category":category,
+            "start_time": start_time,
+            "end_time": end_time
+        }
 
-          Args:
-              to: The email of the client.
+        response = await send_post(
+            webhook_url=webhook_url,
+            headers=self.headers,
+            tool_name="book_appointment",
+            data=data
+            )
+        return {"message": response}
 
-          Returns:
-              A confirmation message
-          """
-
-          print("send email Tool")
-
-          return {"success": "Ok"}
 
     @function_tool()
     async def check_availability(
@@ -141,6 +133,7 @@ class Assistant(Agent):
         context: RunContext,
         start_time: str,
     )-> dict:
+        
         """Use this tool to check for the  availability of the date and time given by the client."""
         
         await context.session.say(
@@ -148,44 +141,28 @@ class Assistant(Agent):
             allow_interruptions=False,
             )
       
-        # API call to check availability would go here.
-        import requests
-        webhook_availability = "https://sought-cicada-scarcely.ngrok-free.app/webhook-test/716bf76e-170c-470a-8c9d-82b927292ef9"
-
-        # The end time is the start time plus 30 minutes
-        from datetime import datetime, timedelta
-        from zoneinfo import ZoneInfo  # Python 3.9+    
-
-        
         start_time = datetime.fromisoformat(start_time).astimezone(ZoneInfo("Europe/Paris"))    # Convert start_time to a datetime object in the Paris timezone
         end_time = start_time + timedelta(minutes=30)                                           # Add 30 minutes to the start time
 
         logger.info(f"Start time: {start_time.isoformat(timespec='milliseconds')}")
         logger.info(f"End time: {end_time.isoformat(timespec='milliseconds')}")
 
-        params = {
+        data = {
             "call_time": now,
-            "start":start_time,
-            "end": end_time,
+            "start":start_time.isoformat(),
+            "end": end_time.isoformat(),
         }
 
-        response = requests.get(webhook_availability, params=params)
-        logger.info(f"{response.status_code}, {response.text}")
+        response = await send_post(
+            webhook_url=webhook_url,
+            headers=self.headers,
+            tool_name="check_availability",
+            data=data
+            )
 
-        output = {
-            "success": True,
-            "requested_slot": {
-                "date": "2025-10-20",
-                "time": "14:00",
-                "status": "unavailable"
-            },
-            "suggested_slots": [
-                {"date": "2025-10-25", "time": "10:00"},
-                {"date": "2025-10-28", "time": "16:30"},
-                {"date": "2025-10-29", "time": "09:00"}
-            ]
-        }
-        return response.text
+        # logger.info(f"{response.status_code}, {response.text}")
+
+        return {"message": response}
 
 
     @function_tool()
@@ -242,7 +219,5 @@ class Assistant(Agent):
               "beard_trim": '10 euro',
               "shave": '15 euro',
               "combo_cut_and_beard": '30 euro'}
-
-
 
       return haircut_prices[category]
