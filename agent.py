@@ -16,7 +16,6 @@ from zoneinfo import ZoneInfo  # Python 3.9+
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
 
@@ -35,7 +34,6 @@ system_prompt = f"""
                 # Identity:
                 You are a helpful barber assistant communicating only in french.
                 the barber shop is called "grizzly barbershop".
-                the adresse is "1 rue d’Hauteville, 75010 Paris" next to Métro Bonne Nouvelle - Ligne 8.
                 The shop is open all days except Sunday, from 10:00 AM to 7:00 PM.
                 Your role is to help clients to schedule appointments.
 
@@ -52,6 +50,10 @@ system_prompt = f"""
                   - For spelling: "Could you spell that for me, please?"
                   - For numbers: "Was that 1-5-0-0 or 1-5,000?"
                   - For dates: "So that's January fifteenth, 2023, correct?"
+
+                # People also ask about:
+                - Adresses and directions to the barbershop. The adresse is "1 rue d’Hauteville, 75010 Paris" next to Métro Bonne Nouvelle - Ligne 8.
+
 """
 class Assistant(Agent):
 
@@ -136,20 +138,23 @@ class Assistant(Agent):
           Returns:
               A confirmation message
         """
+
         logger.info(f"Enter the book_slot node....")
+
+        caller_phone_number = context.session.userdata.phone_number
+        logger.info(f"Caller phone number: {caller_phone_number}")
         logger.info(f"Booking slot for {name} on {start_time} in category {category}")
-
-
-              
+        
         start_time = datetime.fromisoformat(start_time).astimezone(ZoneInfo("Europe/Paris"))    # Convert start_time to a datetime object in the Paris timezone
         
-        # End time it depiends on the category
+        # End time it depends on the category
         end_time = start_time + timedelta(minutes=30)                                           # Add 30 minutes to the start time
 
         logger.info(f"Start time: {start_time.isoformat(timespec='milliseconds')}")
         logger.info(f"End time: {end_time.isoformat(timespec='milliseconds')}")
         
         data = {
+            "phone_number": caller_phone_number,
             "name": name,
             "category":category,
             "start_time": start_time.isoformat(),
@@ -163,13 +168,8 @@ class Assistant(Agent):
             data=data
             )
         
-        if response.status == 200:
-           context.session.userdata.user_name = name
-           context.session.userdata.start_time = start_time
-           context.session.userdata.end_time = end_time
-           context.session.userdata.category = category
-
-
+        logger.info(f"Debug response from webhook: {response}")
+        
         return {"message": response}
 
 
@@ -178,17 +178,17 @@ class Assistant(Agent):
     async def has_appointment(
         self,
         context: RunContext,
-        name:str
+        phone_number:str
     )-> dict:
       """Check if an appointment exists.
 
       Args:
-          name: The id of the appointment to check.
+          phone_number: The phone number of the client.
 
       Returns:
           A confirmation message.
       """
-      return {'has_appointment':True,"appointment_id":"10010202"}
+      return {'has_appointment':True}
 
 
     @function_tool()

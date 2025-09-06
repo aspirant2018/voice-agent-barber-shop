@@ -14,21 +14,36 @@ import logging
 from agent import Assistant
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
 from dataclasses import dataclass
 
 @dataclass
 class ReservationData:
-    user_name: str | None = None
+    client_name: str | None = None
+    phone_number: str | None = None
     start_time: str | None = None
     end_time: str | None = None
     category: str | None = None
 
 
 async def entrypoint(ctx: agents.JobContext):
+
+
     await ctx.connect()
+
+
+    from livekit import rtc
+    participant = await ctx.wait_for_participant(kind=[rtc.ParticipantKind.PARTICIPANT_KIND_SIP])
+    logger.info(f"Participant {participant.identity} has joined the room.")
+    logger.info(f"Participant metadata:  {participant.metadata}")
+    logger.info(f"Participant attribues: {participant.attributes}")
+    logger.info(f"Participant sip phoneNumber: {participant.attributes['sip.phoneNumber']}")
+
+    phone_number = participant.attributes.get('sip.phoneNumber')
+
+    ReservationData.phone_number = phone_number
+
 
     session = AgentSession[ReservationData](
         userdata=ReservationData,
@@ -52,4 +67,4 @@ async def entrypoint(ctx: agents.JobContext):
 
 
 if __name__ == "__main__":
-    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
+    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint, agent_name="my-telephony-agent"))
