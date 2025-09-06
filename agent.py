@@ -66,18 +66,18 @@ class Assistant(Agent):
         super().__init__(instructions=system_prompt.format(now=now))
 
     @function_tool()
-    async def on_enter(context: RunContext) -> None:
+    async def on_enter(self) -> None:
         """Handle the on_enter event of the agent."""
 
         logger.info(f"Enter the on_enter node....")
-        logger.info(f"Userdata => {context.session.userdata}")
-
+        logger.info(f"Userdata => {self.session.userdata}")
+        userdata = self.session.userdata
         
         instructions = (
             f"Welcome the caller to Grizzly Barbershop, then kindly ask whether the purpose of their call is to schedule an appointment or to inquire about services and prices. "
             )
         
-        await context.session.generate_reply(
+        await self.session.generate_reply(
             instructions = instructions,
             allow_interruptions = False
          )
@@ -146,19 +146,31 @@ class Assistant(Agent):
         logger.info(f"Booking slot for {name} on {start_time} in category {category}")
         
         start_time = datetime.fromisoformat(start_time).astimezone(ZoneInfo("Europe/Paris"))    # Convert start_time to a datetime object in the Paris timezone
-        
-        # End time it depends on the category
         end_time = start_time + timedelta(minutes=30)                                           # Add 30 minutes to the start time
 
         logger.info(f"Start time: {start_time.isoformat(timespec='milliseconds')}")
         logger.info(f"End time: {end_time.isoformat(timespec='milliseconds')}")
+
+
+        # Extract date and times separately
+        date = start_time.date()                 # e.g. 2025-09-06
+        start = start_time.time()           # e.g. 14:30:00
+        end = end_time.time()               # e.g. 15:00:00
+
+        logger.info(f"Date: {date}, Start time: {start_time}, End time: {end_time}")
         
         data = {
+            "call_time": now,
             "phone_number": caller_phone_number,
             "name": name,
             "category":category,
             "start_time": start_time.isoformat(),
-            "end_time": end_time.isoformat()
+            "end_time": end_time.isoformat(),
+            "date": str(date),
+            "start": str(start),
+            "end": str(end),
+            "status": "pending",
+
         }
 
         response = await send_post(

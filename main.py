@@ -19,7 +19,7 @@ load_dotenv()
 from dataclasses import dataclass
 
 @dataclass
-class ReservationData:
+class UserData:
     client_name: str | None = None
     phone_number: str | None = None
     start_time: str | None = None
@@ -29,7 +29,7 @@ class ReservationData:
 
 async def entrypoint(ctx: agents.JobContext):
 
-
+    userdata = UserData()
     await ctx.connect()
 
 
@@ -40,13 +40,11 @@ async def entrypoint(ctx: agents.JobContext):
     logger.info(f"Participant attribues: {participant.attributes}")
     logger.info(f"Participant sip phoneNumber: {participant.attributes['sip.phoneNumber']}")
 
-    phone_number = participant.attributes.get('sip.phoneNumber')
-
-    ReservationData.phone_number = phone_number
+    userdata.phone_number = participant.attributes.get('sip.phoneNumber')
 
 
-    session = AgentSession[ReservationData](
-        userdata=ReservationData,
+    session = AgentSession[UserData](
+        userdata=userdata,
         stt=openai.STT(language="fr"),
         llm=openai.LLM(model="gpt-4.1-mini-2025-04-14"),
         tts=openai.TTS(),
