@@ -37,7 +37,7 @@ system_prompt = f"""
                 The shop is open all days except Sunday, from 10:00 AM to 7:00 PM.
                 Your role is to help clients to schedule appointments.
 
-                # Instructions for the assistant:
+                # Instructions for Booking appointments:
                 1. Ask the client for the day and time they would like to book an appointment.
                 2. <wait for the client to provide a date and time>.
                 3. Check the availability of the requested slot.
@@ -45,6 +45,15 @@ system_prompt = f"""
                 5. <wait for the client to provide their name and service type>.
                 5. Book the slot and confirm the appointment with the client.
                 6. If the slot is not available, ask the client if they would like to choose another slot.
+
+                # Instructions for Cancelling appointments:
+                1. Check if the client has an appointment. (You don't need to ask for the phone number, you can get it from the call metadata.)
+                2. If the client has an appointment. Confirm the details of the appointment with the client.
+                3. Ask the client if they would like to cancel the appointment.
+                4. <wait for the client to confirm cancellation>.
+                5. Cancel the appointment and confirm the cancellation with the client.
+                6. If the client does not have an appointment, inform the client that no appointment was found.
+
 
                 # clarification techniques:
                   - For spelling: "Could you spell that for me, please?"
@@ -93,7 +102,7 @@ class Assistant(Agent):
         
         """Use this tool to check for the  availability of the date and time given by the client."""
         
-        await context.session.say(
+        await self.session.say(
             "Attendez un instant, je vais vérifier la disponibilité du créneau que vous avez demandé.",
             allow_interruptions=False,
             )
@@ -169,7 +178,7 @@ class Assistant(Agent):
             "date": str(date),
             "start": str(start),
             "end": str(end),
-            "status": "pending",
+            "status": "confirmed",
 
         }
 
@@ -185,40 +194,70 @@ class Assistant(Agent):
         return {"message": response}
 
 
-
     @function_tool()
     async def has_appointment(
         self,
         context: RunContext,
-        phone_number:str
     )-> dict:
-      """Check if an appointment exists.
+        """ Use this tool to check the caller has an appointment."""
 
-      Args:
-          phone_number: The phone number of the client.
+        caller_phone_number = context.session.userdata.phone_number
+        logger.info(f"Caller phone number: {caller_phone_number}")
 
-      Returns:
-          A confirmation message.
-      """
-      return {'has_appointment':True}
+        data = {
+                "call_time": now,
+                "phone_number": caller_phone_number,
+            }
+
+        response = await send_post(
+                webhook_url=webhook_url,
+                headers=self.headers,
+                tool_name="has_appointment",
+                data=data
+                )
+        
+
+        # update the userdata with the appointment details if any
+        logger.info(f"Response from has_appointment: {response}") # type list
+
+        if response and isinstance(response, list) and len(response) > 0:
+            for booking in response:
+                logger.info(f"Booking: {booking}")
+                context.session.userdata.bookings.append(booking)
+                
+        return context.session.userdata.summarize()
 
 
     @function_tool()
     async def cancel_appointment(
         self,
         context: RunContext,
-        appointment_id:str
+        bookingID:str
     )-> dict:
-      """Cancel an appointment.
+        """Use this tool to cancel an appointment."""
 
-      Args:
-          appointment_id: The id of the appointment to cancel.
+        userdata = context.session.userdata
+        logger.info(f"Userdata in cancel_appointment: {userdata}")
 
-      Returns:
-          A confirmation message.
-      """
 
-      return {'success':True}
+
+        data = {
+                "bookingID": bookingID,
+                "phone_number": context.session.userdata.phone_number,
+            }
+        
+        logger.info(f"Data to send to webhook: {data}")
+
+        response = await send_post(
+                webhook_url=webhook_url,
+                headers=self.headers,
+                tool_name="cancel_appointment",
+                data=data
+                )
+
+
+        return response
+
 
     @function_tool()
     async def haircut_prices(

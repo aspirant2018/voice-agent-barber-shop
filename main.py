@@ -12,22 +12,35 @@ from livekit.plugins import (
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 import logging
 from agent import Assistant
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+
 
 logger = logging.getLogger(__name__)
 load_dotenv()
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class UserData:
-    client_name: str | None = None
+    customer_name: str | None = None
     phone_number: str | None = None
-    start_time: str | None = None
-    end_time: str | None = None
-    category: str | None = None
+    bookings: list[dict] = field(default_factory=list)
 
+
+    def summarize(self) -> str:
+        data = {
+            "customer_name": self.customer_name or "unknown",
+            "customer_phone": self.phone_number or "unknown",
+            "bookings": self.bookings,
+        }
+        return str(data)
 
 async def entrypoint(ctx: agents.JobContext):
+
+
+
 
     userdata = UserData()
     await ctx.connect()
@@ -41,6 +54,9 @@ async def entrypoint(ctx: agents.JobContext):
     logger.info(f"Participant sip phoneNumber: {participant.attributes['sip.phoneNumber']}")
 
     userdata.phone_number = participant.attributes.get('sip.phoneNumber')
+    userdata.call_time = datetime.now(ZoneInfo("Europe/Paris"))
+
+    logger.info(f"User data initialized: {userdata.summarize()}")
 
 
     session = AgentSession[UserData](
