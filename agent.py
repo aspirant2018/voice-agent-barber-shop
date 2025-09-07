@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from typing import Literal
 
 from livekit import agents
-from livekit.agents import AgentSession, Agent, RoomInputOptions,function_tool,RunContext
+from livekit.agents import AgentSession, Agent, RoomInputOptions,function_tool,RunContext,get_job_context
 
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 import logging
@@ -206,7 +206,7 @@ class Assistant(Agent):
 
         data = {
                 "call_time": now,
-                "phone_number": caller_phone_number,
+                "phone_number": caller_phone_number.replace("+",""), # remove the leading + from the phone number
             }
 
         response = await send_post(
@@ -232,17 +232,18 @@ class Assistant(Agent):
     async def cancel_appointment(
         self,
         context: RunContext,
-        bookingID:str
     )-> dict:
         """Use this tool to cancel an appointment."""
 
         userdata = context.session.userdata
         logger.info(f"Userdata in cancel_appointment: {userdata}")
 
+        if context.session.userdata.bookings:
+            logger.info(f"Bookings: {context.session.userdata.bookings}")
 
 
         data = {
-                "bookingID": bookingID,
+                "bookingID": context.session.userdata.bookings[0]['BookingID'],
                 "phone_number": context.session.userdata.phone_number,
             }
         
@@ -256,7 +257,20 @@ class Assistant(Agent):
                 )
 
 
+        
+        
         return response
+    
+    
+    @function_tool()
+    async def end_call(context: RunContext) -> None:
+
+        """Use this tool to if the user intention is to end the call."""
+        await context.session.say("Merci pour votre appel. Je vous souhaite une excellente journée ! Au revoir !")
+        job_ctx = get_job_context()
+        
+        from livekit.api import DeleteRoomRequest
+        await job_ctx.api.room.delete_room(DeleteRoomRequest(room=job_ctx.room.name))
 
 
     @function_tool()
