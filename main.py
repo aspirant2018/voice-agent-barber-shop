@@ -8,6 +8,8 @@ from livekit.plugins import (
     openai,
     noise_cancellation,
     silero,
+    deepgram,
+    cartesia
 )
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 import logging
@@ -61,9 +63,9 @@ async def entrypoint(ctx: agents.JobContext):
 
     session = AgentSession[UserData](
         userdata=userdata,
-        stt=openai.STT(language="fr"),
+        stt=deepgram.STT(language="en-US",api_key="189171d012321ba6c54d147d888f0279e6cffc60"),  # Use `language="fr-FR"` for French
         llm=openai.LLM(model="gpt-4.1-mini-2025-04-14"),
-        tts=openai.TTS(),
+        tts=cartesia.TTS(model="sonic-2",voice="71a7ad14-091c-4e8e-a314-022ece01c121",api_key="sk_car_cK1ht1GBLus2zpDz4G7n7i"),
         vad=silero.VAD.load(),
         turn_detection=MultilingualModel(),
     )

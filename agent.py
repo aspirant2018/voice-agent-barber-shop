@@ -14,7 +14,6 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo  # Python 3.9+    
 
 
-
 logger = logging.getLogger(__name__)
 load_dotenv()
 
@@ -26,13 +25,14 @@ paris_time = datetime.now(ZoneInfo("Europe/Paris"))
 now = paris_time.isoformat(timespec="milliseconds")
 logger.info(f"Now: {now}")
 webhook_url = "https://sought-cicada-scarcely.ngrok-free.app/webhook-test/716bf76e-170c-470a-8c9d-82b927292ef9"
+#webhook_url = "https://sought-cicada-scarcely.ngrok-free.app/webhook/716bf76e-170c-470a-8c9d-82b927292ef9"
 
 
 system_prompt = f"""
                 # Current date and time: {now}
 
                 # Identity:
-                You are a helpful barber assistant communicating only in french.
+                You are a helpful barber assistant communicating only in English.
                 the barber shop is called "grizzly barbershop".
                 The shop is open all days except Sunday, from 10:00 AM to 7:00 PM.
                 Your role is to help clients to schedule appointments.
@@ -103,7 +103,7 @@ class Assistant(Agent):
         """Use this tool to check for the  availability of the date and time given by the client."""
         
         await self.session.say(
-            "Attendez un instant, je vais vérifier la disponibilité du créneau que vous avez demandé.",
+            "Wait a moment while I check the availability of that slot.",
             allow_interruptions=False,
             )
       
@@ -266,7 +266,7 @@ class Assistant(Agent):
     async def end_call(context: RunContext) -> None:
 
         """Use this tool to if the user intention is to end the call."""
-        await context.session.say("Merci pour votre appel. Je vous souhaite une excellente journée ! Au revoir !")
+        await context.session.say("Thank you for your call. I wish you a great day. Goodbye!")
         job_ctx = get_job_context()
         
         from livekit.api import DeleteRoomRequest
